@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
 # encoding: utf-8
+set -euo pipefail
 FG_RED="$(tput setaf 1)"
 TP_RESET="$(tput sgr0)"
+MUSIC_RECOMMENDATIONS_ENV_FILEPATH="${MUSIC_RECOMMENDATIONS_ENV_FILEPATH:-"${XDG_CONFIG_HOME:-"${HOME}/.config"}/music_recommendations.env"}"
+[ -f "$MUSIC_RECOMMENDATIONS_ENV_FILEPATH" ] && . "$MUSIC_RECOMMENDATIONS_ENV_FILEPATH"
 MUSIC_HISTORY_JSON_FILEPATH="${MUSIC_HISTORY_JSON_FILEPATH:-"${HOME}/.shared_music_history.json"}"
+SPOTIFY_CLIENT_INFO_FILEPATH="${SPOTIFY_CLIENT_INFO_FILEPATH:-"${HOME}/.config/.spotify.env"}"
+[ -f "$SPOTIFY_CLIENT_INFO_FILEPATH" ] && . "$SPOTIFY_CLIENT_INFO_FILEPATH"
+SPOTIFY_CLIENT_ID="${SPOTIFY_CLIENT_ID:-""}"
+SPOTIFY_CLIENT_SECRET="${SPOTIFY_CLIENT_SECRET:-""}"
 
 spotify_token_json_filepath() {
   printf '%s' "${HOME}/.spotify-token.json"
@@ -23,7 +30,10 @@ _error() {
 }
 
 error() {
-  _error "$(error_msg "$1")$2"
+  description="${2:-""}"
+  usage="Usage: $(basename "$0") \$URL \"\$message\""
+  _error "$(error_msg "$1")$description
+$usage"
 #  _error "exiting with $(error_code "$1")"
   exit $(error_code "$1")
   return "$1"
@@ -37,7 +47,7 @@ error_msg() {
   printf '%s' "${ERROR_CODES["$1"]#*,}"
 }
 
-url="${1}"
+url="${1:-""}"
 [ "$url" == "" ] && error MISSING_URL
 
 [[ "$url" != https://* && "$url" != http://* ]] && error INVALID_URL
@@ -82,7 +92,7 @@ if [[ "$url" == https://open.spotify.com/track/* ]]; then
   item_id="${url#https://open.spotify.com/track/}"
 
   title="$(spotify_get_track_json "$item_id" | jq -r '[(.artists | map(.name)| join(", ")), .name] | join(" — ")')" || exit $?
-  message="${title} # ${description}"
+  message="${title} # ${description:-""}"
   html_type="spotify:track"
 elif [[ "$url" == *youtube.com/* || "$url" == *youtu.be/* ]]; then
   item_id="$(printf '%s' "$url" | grep -oP '(https?://(www\.)?youtube\.com/watch/?(\?([^=]+=[^&]+)+&v=|\?v=)\K([^&])+|https?://(www\.)?youtu.be/\K([^/?&]+))')"
